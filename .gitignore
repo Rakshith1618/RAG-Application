@@ -21,6 +21,3 @@ __pycache__/
 .vscode/
 .idea/
 *.swp
-
-# Vector database local caches (optional, remove if you want index versioned)
-db/*.pkl

@@ -1,15 +1,19 @@
+import os
 import pickle
 import numpy as np
 import requests
 import faiss
 
 # --- Config ---
-VECTOR_STORE_FILE = "db/faiss_index.pkl"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+VECTOR_STORE_FILE = os.path.join(BASE_DIR, "db", "faiss_index.pkl")
 EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 HF_API_URL = f"https://api-inference.huggingface.co/pipeline/feature-extraction/{EMBEDDING_MODEL_NAME}"
 
 # --- Load FAISS index and chunk metadata ---
 def load_faiss_index(file_path=VECTOR_STORE_FILE):
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"FAISS index file not found at {file_path}")
     with open(file_path, "rb") as f:
         data = pickle.load(f)
     index = data["index"]
@@ -28,7 +32,6 @@ def get_query_vector(query):
             res = response.json()
             arr = np.array(res, dtype="float32")
             if arr.ndim == 2:
-                # Token-level embeddings: mean pool across sequence length
                 vec = np.mean(arr, axis=0, keepdims=True)
             elif arr.ndim == 1:
                 vec = np.expand_dims(arr, axis=0)
