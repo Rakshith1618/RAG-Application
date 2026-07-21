@@ -1,0 +1,26 @@
+# Virtual Environments
+venv/
+myenv/
+env/
+ENV/
+
+# Environment Variables & Secrets
+.env
+.env.local
+*.env
+
+# Python Cache & Compiled Files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# OS & IDE Files
+.DS_Store
+.vscode/
+.idea/
+*.swp
+
+# Vector database local caches (optional, remove if you want index versioned)
+db/*.pkl

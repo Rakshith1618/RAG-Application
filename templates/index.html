@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sports Knowledge RAG Assistant</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Marked.js for markdown rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #07070a;
+            --panel-bg: rgba(18, 18, 26, 0.45);
+            --panel-border: rgba(255, 255, 255, 0.08);
+            --text-primary: #f3f4f6;
+            --text-secondary: #9ca3af;
+            --primary-gradient: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            --accent-glow: rgba(99, 102, 241, 0.15);
+            --accent-glow-strong: rgba(99, 102, 241, 0.4);
+            --user-bubble-bg: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%);
+            --bot-bubble-bg: rgba(255, 255, 255, 0.04);
+            --sidebar-width: 320px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Ambient background glow elements */
+        .ambient-glow-1 {
+            position: absolute;
+            top: -10%;
+            left: 20%;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(99, 102, 241, 0.12) 0%, rgba(0, 0, 0, 0) 70%);
+            z-index: 0;
+            pointer-events: none;
+            animation: pulse-glow 15s infinite alternate ease-in-out;
+        }
+
+        .ambient-glow-2 {
+            position: absolute;
+            bottom: -10%;
+            right: 10%;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(168, 85, 247, 0.1) 0%, rgba(0, 0, 0, 0) 70%);
+            z-index: 0;
+            pointer-events: none;
+            animation: pulse-glow 20s infinite alternate-reverse ease-in-out;
+        }
+
+        @keyframes pulse-glow {
+            0% { transform: scale(1) translate(0, 0); }
+            100% { transform: scale(1.15) translate(30px, -20px); }
+        }
+
+        /* Main Container layout */
+        .app-container {
+            display: flex;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            position: relative;
+        }
+
+        /* Sidebar Styling */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--panel-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-right: 1px solid var(--panel-border);
+            display: flex;
+            flex-direction: column;
+            padding: 24px;
+            z-index: 20;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .sidebar-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 32px;
+        }
+
+        .sidebar-header i {
+            font-size: 24px;
+            background: linear-gradient(135deg, #a855f7, #6366f1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .sidebar-header h2 {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            font-size: 20px;
+            letter-spacing: -0.5px;
+        }
+
+        .docs-section-title {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+        }
+
+        .docs-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overflow-y: auto;
+            flex: 1;
+            padding-right: 4px;
+        }
+
+        /* Scrollbar custom styling */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.20);
+        }
+
+        .doc-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 12px;
+            transition: all 0.2s ease;
+            cursor: default;
+        }
+
+        .doc-item:hover {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(99, 102, 241, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .doc-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            background: rgba(99, 102, 241, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #818cf8;
+            font-size: 16px;
+        }
+
+        .doc-details {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .doc-name {
+            font-size: 13.5px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .doc-meta {
+            font-size: 10.5px;
+            color: var(--text-secondary);
+        }
+
+        .sidebar-footer {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 11.5px;
+            color: var(--text-secondary);
+        }
+
+        .sidebar-footer .status-dot {
+            width: 8px;
+            height: 8px;
+            background-color: #10b981;
+            border-radius: 50%;
+            box-shadow: 0 0 8px #10b981;
+        }
+
+        /* Chat Panel Layout */
+        .chat-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            background: rgba(9, 9, 14, 0.3);
+        }
+
+        /* Chat Header */
+        .chat-header {
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 40px;
+            border-bottom: 1px solid var(--panel-border);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        .header-title {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .header-title h1 {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            font-size: 22px;
+            letter-spacing: -0.5px;
+        }
+
+        .header-title p {
+            font-size: 12.5px;
+            color: var(--text-secondary);
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .header-btn {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .header-btn:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.2);
+            color: #818cf8;
+        }
+
+        /* Chat Feed */
+        .chat-feed {
+            flex: 1;
+            overflow-y: auto;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* Welcome Message Screen */
+        .welcome-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            flex: 1;
+            max-width: 600px;
+            margin: auto;
+            text-align: center;
+            gap: 20px;
+            padding: 40px 20px;
+        }
+
+        .welcome-icon {
+            font-size: 40px;
+            width: 80px;
+            height: 80px;
+            border-radius: 20px;
+            background: rgba(99, 102, 241, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #818cf8;
+            margin-bottom: 10px;
+            box-shadow: 0 8px 24px rgba(99, 102, 241, 0.08);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+        }
+
+        .welcome-screen h2 {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            font-size: 28px;
+            letter-spacing: -0.5px;
+        }
+
+        .welcome-screen p {
+            color: var(--text-secondary);
+            font-size: 15px;
+            line-height: 1.6;
+        }
+
+        /* Suggestions Grid */
+        .suggestions-container {
+            width: 100%;
+            margin-top: 15px;
+        }
+
+        .suggestions-title {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            text-align: left;
+        }
+
+        .suggestions-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .suggestion-chip {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+            padding: 14px 16px;
+            text-align: left;
+            font-size: 13px;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .suggestion-chip:hover {
+            background: rgba(99, 102, 241, 0.08);
+            border-color: rgba(99, 102, 241, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .suggestion-chip i {
+            color: #818cf8;
+            font-size: 12px;
+        }
+
+        /* Chat Message Bubbles */
+        .message-row {
+            display: flex;
+            width: 100%;
+            opacity: 0;
+            transform: translateY(12px);
+            animation: slide-up 0.3s forwards cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes slide-up {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message-row.user {
+            justify-content: flex-end;
+        }
+
+        .message-row.bot {
+            justify-content: flex-start;
+        }
+
+        .message-wrapper {
+            display: flex;
+            gap: 16px;
+            max-width: 75%;
+        }
+
+        .message-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+            margin-top: 4px;
+        }
+
+        .user .message-avatar {
+            background: rgba(99, 102, 241, 0.2);
+            color: #818cf8;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            order: 2;
+        }
+
+        .bot .message-avatar {
+            background: rgba(168, 85, 247, 0.15);
+            color: #c084fc;
+            border: 1px solid rgba(168, 85, 247, 0.25);
+            order: 1;
+        }
+
+        .message-content-container {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .user .message-content-container {
+            align-items: flex-end;
+            order: 1;
+        }
+
+        .bot .message-content-container {
+            align-items: flex-start;
+            order: 2;
+        }
+
+        .message-bubble {
+            padding: 16px 20px;
+            border-radius: 16px;
+            font-size: 14.5px;
+            line-height: 1.6;
+            word-break: break-word;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .user .message-bubble {
+            background: var(--user-bubble-bg);
+            color: #ffffff;
+            border-bottom-right-radius: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .bot .message-bubble {
+            background: var(--bot-bubble-bg);
+            color: var(--text-primary);
+            border-bottom-left-radius: 4px;
+            border: 1px solid var(--panel-border);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        /* Markdown Styling inside Bubble */
+        .message-bubble p {
+            margin-bottom: 8px;
+        }
+        .message-bubble p:last-child {
+            margin-bottom: 0;
+        }
+        .message-bubble ul, .message-bubble ol {
+            margin-left: 20px;
+            margin-bottom: 8px;
+        }
+        .message-bubble li {
+            margin-bottom: 4px;
+        }
+        .message-bubble h1, .message-bubble h2, .message-bubble h3 {
+            font-family: 'Outfit', sans-serif;
+            margin: 12px 0 6px 0;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        .message-bubble h1:first-child, .message-bubble h2:first-child, .message-bubble h3:first-child {
+            margin-top: 0;
+        }
+        .message-bubble code {
+            background: rgba(255,255,255,0.08);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 13px;
+        }
+
+        .message-time {
+            font-size: 10px;
+            color: var(--text-secondary);
+            margin: 0 4px;
+        }
+
+        /* Loading Bubble Animation */
+        .loading-bubble {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 16px 24px;
+            background: var(--bot-bubble-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            border-bottom-left-radius: 4px;
+        }
+
+        .loading-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--text-secondary);
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+
+        .loading-dot:nth-child(1) { animation-delay: -0.32s; }
+        .loading-dot:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1.0); }
+        }
+
+        /* Input Panel Area */
+        .input-panel {
+            padding: 24px 40px 40px 40px;
+            background: linear-gradient(180deg, rgba(7, 7, 10, 0) 0%, rgba(7, 7, 10, 0.95) 100%);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            position: relative;
+            z-index: 30;
+        }
+
+        .input-container {
+            display: flex;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 6px 6px 6px 16px;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        }
+
+        .input-container:focus-within {
+            border-color: rgba(99, 102, 241, 0.6);
+            box-shadow: 0 8px 32px rgba(99, 102, 241, 0.12), 0 0 0 1px rgba(99, 102, 241, 0.4);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .input-container i.search-icon {
+            color: var(--text-secondary);
+            font-size: 16px;
+            margin-right: 12px;
+        }
+
+        .input-container input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--text-primary);
+            font-size: 15px;
+            height: 48px;
+            padding-right: 10px;
+        }
+
+        .input-container input::placeholder {
+            color: var(--text-secondary);
+        }
+
+        .send-btn {
+            background: var(--primary-gradient);
+            border: none;
+            color: #ffffff;
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+
+        .send-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 16px rgba(99, 102, 241, 0.45);
+        }
+
+        .send-btn:active {
+            transform: scale(0.95);
+        }
+
+        .send-btn i {
+            font-size: 16px;
+            margin-left: 2px;
+        }
+
+        .footer-note {
+            text-align: center;
+            font-size: 11px;
+            color: var(--text-secondary);
+            opacity: 0.6;
+        }
+
+        /* Toggle Sidebar Button (Mobile) */
+        .menu-toggle {
+            display: none;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 900px) {
+            .sidebar {
+                position: absolute;
+                left: -100%;
+                top: 0;
+                bottom: 0;
+            }
+
+            .sidebar.active {
+                left: 0;
+            }
+
+            .menu-toggle {
+                display: flex;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .chat-header {
+                padding: 0 20px;
+            }
+            .chat-feed {
+                padding: 20px;
+            }
+            .input-panel {
+                padding: 16px 20px 24px 20px;
+            }
+            .suggestions-grid {
+                grid-template-columns: 1fr;
+            }
+            .message-wrapper {
+                max-width: 88%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="ambient-glow-1"></div>
+    <div class="ambient-glow-2"></div>
+
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <i class="fa-solid fa-brain"></i>
+                <h2>RAG Hub</h2>
+            </div>
+            
+            <h3 class="docs-section-title">Knowledge Library</h3>
+            <div class="docs-list">
+                <div class="doc-item">
+                    <div class="doc-icon"><i class="fa-solid fa-basketball-ball"></i></div>
+                    <div class="doc-details">
+                        <span class="doc-name">Basketball Manual</span>
+                        <span class="doc-meta">Basket Ball.pdf</span>
+                    </div>
+                </div>
+                <div class="doc-item">
+                    <div class="doc-icon"><i class="fa-solid fa-square-full"></i></div>
+                    <div class="doc-details">
+                        <span class="doc-name">Carrom Board Rules</span>
+                        <span class="doc-meta">Carrom Board.pdf</span>
+                    </div>
+                </div>
+                <div class="doc-item">
+                    <div class="doc-icon"><i class="fa-solid fa-star"></i></div>
+                    <div class="doc-details">
+                        <span class="doc-name">Chinese Checkers</span>
+                        <span class="doc-meta">Chinese Checkers.pdf</span>
+                    </div>
+                </div>
+                <div class="doc-item">
+                    <div class="doc-icon"><i class="fa-solid fa-baseball-bat-ball"></i></div>
+                    <div class="doc-details">
+                        <span class="doc-name">Cricket Rules</span>
+                        <span class="doc-meta">Cricket.pdf</span>
+                    </div>
+                </div>
+                <div class="doc-item">
+                    <div class="doc-icon"><i class="fa-solid fa-soccer-ball"></i></div>
+                    <div class="doc-details">
+                        <span class="doc-name">Football Guide</span>
+                        <span class="doc-meta">Football.pdf</span>
+                    </div>
+                </div>
+                <div class="doc-item">
+                    <div class="doc-icon"><i class="fa-solid fa-table-tennis-paddle-ball"></i></div>
+                    <div class="doc-details">
+                        <span class="doc-name">Table Tennis Guide</span>
+                        <span class="doc-meta">table tennis.pdf</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar-footer">
+                <span class="status-dot"></span>
+                <span>RAG Model Connected</span>
+            </div>
+        </aside>
+
+        <!-- Chat Panel -->
+        <main class="chat-panel">
+            <header class="chat-header">
+                <div class="header-title">
+                    <h1>Sports Rulebook Assistant</h1>
+                    <p>Powered by Llama-3.3-70b-versatile & FAISS Index</p>
+                </div>
+                <div class="header-actions">
+                    <button class="header-btn menu-toggle" onclick="toggleSidebar()" title="Toggle Sidebar">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+                    <button class="header-btn" onclick="clearChat()" title="Clear Chat">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Chat Feed -->
+            <div class="chat-feed" id="chat-feed">
+                <!-- Welcome Screen -->
+                <div class="welcome-screen" id="welcome-screen">
+                    <div class="welcome-icon">
+                        <i class="fa-solid fa-comments"></i>
+                    </div>
+                    <h2>Ask Sports Rulebooks</h2>
+                    <p>I am a strict RAG assistant loaded with sports guides. I answer questions directly using the rules of Basketball, Cricket, Football, Carrom, Table Tennis, and Chinese Checkers.</p>
+                    
+                    <div class="suggestions-container">
+                        <h4 class="suggestions-title">Try asking</h4>
+                        <div class="suggestions-grid">
+                            <div class="suggestion-chip" onclick="applySuggestion('What is the main objective of basket ball?')">
+                                <i class="fa-solid fa-basketball"></i>
+                                <span>Objective of Basketball?</span>
+                            </div>
+                            <div class="suggestion-chip" onclick="applySuggestion('How is a striker shot performed in Carrom?')">
+                                <i class="fa-solid fa-gamepad"></i>
+                                <span>Striker shot in Carrom?</span>
+                            </div>
+                            <div class="suggestion-chip" onclick="applySuggestion('What are the rules of Cricket LBW?')">
+                                <i class="fa-solid fa-baseball"></i>
+                                <span>Cricket LBW rules?</span>
+                            </div>
+                            <div class="suggestion-chip" onclick="applySuggestion('What is the structure of a Football field?')">
+                                <i class="fa-solid fa-circle-play"></i>
+                                <span>Football field structure?</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input Panel -->
+            <section class="input-panel">
+                <div class="input-container">
+                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                    <input type="text" id="query-input" placeholder="Type your question about sports rules here..." onkeydown="handleKeyDown(event)" autocomplete="off" />
+                    <button class="send-btn" onclick="sendQuery()" id="send-button">
+                        <i class="fa-solid fa-paper-plane"></i>
+                    </button>
+                </div>
+                <div class="footer-note">
+                    Answers are strictly derived from the loaded sports PDF documentation.
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        const chatFeed = document.getElementById('chat-feed');
+        const queryInput = document.getElementById('query-input');
+        const welcomeScreen = document.getElementById('welcome-screen');
+
+        // Configure marked.js to break lines
+        marked.setOptions({
+            breaks: true,
+            gfm: true
+        });
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('active');
+        }
+
+        function applySuggestion(suggestionText) {
+            queryInput.value = suggestionText;
+            sendQuery();
+        }
+
+        function handleKeyDown(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendQuery();
+            }
+        }
+
+        function formatTime() {
+            const now = new Date();
+            let hours = now.getHours();
+            let minutes = now.getMinutes();
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12; // 0 should be 12
+            minutes = minutes < 10 ? '0'+minutes : minutes;
+            return `${hours}:${minutes} ${ampm}`;
+        }
+
+        function clearChat() {
+            // Re-render chat feed with only welcome screen
+            chatFeed.innerHTML = '';
+            chatFeed.appendChild(welcomeScreen);
+            welcomeScreen.style.display = 'flex';
+        }
+
+        async function sendQuery() {
+            const queryText = queryInput.value.trim();
+            if (!queryText) return;
+
+            // Clear input field
+            queryInput.value = '';
+
+            // Hide welcome screen on first query
+            if (welcomeScreen.style.display !== 'none') {
+                welcomeScreen.style.display = 'none';
+            }
+
+            // Append user message
+            appendMessage(queryText, 'user');
+
+            // Append loading indicator
+            const loadingRow = appendLoadingIndicator();
+
+            try {
+                const response = await fetch('/ask', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: queryText })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Server returned an error');
+                }
+
+                const data = await response.json();
+                
+                // Remove loading indicator
+                loadingRow.remove();
+
+                // Append bot message with Markdown parsing
+                appendMessage(data.answer, 'bot');
+
+            } catch (error) {
+                console.error('Error:', error);
+                loadingRow.remove();
+                appendMessage("❌ An error occurred while communicating with the RAG server. Please make sure the backend is running.", 'bot');
+            }
+        }
+
+        function appendMessage(text, sender) {
+            const row = document.createElement('div');
+            row.className = `message-row ${sender}`;
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'message-wrapper';
+
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            avatar.innerHTML = sender === 'user' ? '<i class="fa-solid fa-user"></i>' : '<i class="fa-solid fa-robot"></i>';
+
+            const contentContainer = document.createElement('div');
+            contentContainer.className = 'message-content-container';
+
+            const bubble = document.createElement('div');
+            bubble.className = 'message-bubble';
+            
+            if (sender === 'user') {
+                bubble.innerText = text;
+            } else {
+                // Render markdown for bot replies
+                bubble.innerHTML = marked.parse(text);
+            }
+
+            const time = document.createElement('span');
+            time.className = 'message-time';
+            time.innerText = formatTime();
+
+            contentContainer.appendChild(bubble);
+            contentContainer.appendChild(time);
+
+            wrapper.appendChild(avatar);
+            wrapper.appendChild(contentContainer);
+            row.appendChild(wrapper);
+
+            chatFeed.appendChild(row);
+            
+            // Scroll to bottom smoothly
+            chatFeed.scrollTo({
+                top: chatFeed.scrollHeight,
+                behavior: 'smooth'
+            });
+        }
+
+        function appendLoadingIndicator() {
+            const row = document.createElement('div');
+            row.className = 'message-row bot';
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'message-wrapper';
+
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            avatar.innerHTML = '<i class="fa-solid fa-robot"></i>';
+
+            const container = document.createElement('div');
+            container.className = 'message-content-container';
+
+            const bubble = document.createElement('div');
+            bubble.className = 'loading-bubble';
+            bubble.innerHTML = `
+                <div class="loading-dot"></div>
+                <div class="loading-dot"></div>
+                <div class="loading-dot"></div>
+            `;
+
+            container.appendChild(bubble);
+            wrapper.appendChild(avatar);
+            wrapper.appendChild(container);
+            row.appendChild(wrapper);
+
+            chatFeed.appendChild(row);
+            
+            chatFeed.scrollTo({
+                top: chatFeed.scrollHeight,
+                behavior: 'smooth'
+            });
+
+            return row;
+        }
+    </script>
+</body>
+</html>
