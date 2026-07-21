@@ -1,37 +1,22 @@
-
-
 import os
 from dotenv import load_dotenv
 from groq import Groq
-from retrieval import get_relevant_documents  # your retrieval pipeline
+from retrieval import get_relevant_documents
 
-# -----------------------------
-# Load environment variables
-# -----------------------------
 load_dotenv()
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
-if not GROQ_API_KEY:
-    raise ValueError("❌ GROQ_API_KEY not found in .env")
 
-# -----------------------------
-# Initialize Groq client
-# -----------------------------
-client = Groq(api_key=GROQ_API_KEY)
-MODEL_NAME = "llama-3.3-70b-versatile"  # Choose a valid Groq model
+MODEL_NAME = "llama-3.3-70b-versatile"
 TEMPERATURE = 0
-
-# -----------------------------
-# Conversation history
-# -----------------------------
 chat_history = []
 
-# -----------------------------
-# Ask question function
-# -----------------------------
 def ask_question(user_question):
-    print(f"\nYou: {user_question}")
+    groq_key = os.environ.get("GROQ_API_KEY")
+    if not groq_key:
+        return "❌ GROQ_API_KEY not found in environment variables."
 
-    # Step 1: Rewrite follow-up question into standalone
+    client = Groq(api_key=groq_key)
+
+    # Step 1: Rewrite follow-up question into standalone if history exists
     if chat_history:
         history_text = "\n".join([f"User: {h['user']}\nBot: {h['bot']}" for h in chat_history])
         rewrite_prompt = (
@@ -55,7 +40,6 @@ def ask_question(user_question):
     if not docs:
         answer = "I don't have enough information to answer that question based on the provided documents."
         chat_history.append({"user": user_question, "bot": answer})
-        print(f"Bot: {answer}")
         return answer
 
     # Step 3: Build context
@@ -76,17 +60,9 @@ def ask_question(user_question):
     )
 
     answer = response.choices[0].message.content.strip()
-
-    # Step 5: Update chat history
     chat_history.append({"user": user_question, "bot": answer})
-
-    # Step 6: Display answer
-    print(f"Bot: {answer}")
     return answer
 
-# -----------------------------
-# Chat loop
-# -----------------------------
 def start_chat():
     print("Welcome! Ask me anything. Type 'quit' to exit.")
     while True:
@@ -94,10 +70,7 @@ def start_chat():
         if question.lower() == "quit":
             print("Goodbye!")
             break
-        ask_question(question)
+        print(f"Bot: {ask_question(question)}")
 
-# -----------------------------
-# Main
-# -----------------------------
 if __name__ == "__main__":
     start_chat()
