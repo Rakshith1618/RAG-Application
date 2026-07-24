@@ -52,12 +52,68 @@ def ask():
         )
 
         answer = response.choices[0].message.content
-        return jsonify({"answer": answer})
+        formatted_sources = [
+            {
+                "source": d.get("source", "Unknown"),
+                "page": d.get("page", 0) + 1 if isinstance(d.get("page"), int) else d.get("page", 1),
+                "snippet": d.get("content", "")[:250] + ("..." if len(d.get("content", "")) > 250 else ""),
+                "score": round(float(d.get("score", 0.0)), 4)
+            }
+            for d in docs
+        ]
+        return jsonify({"answer": answer, "sources": formatted_sources})
 
     except Exception as e:
         print(f"Error handling /ask request: {e}")
-        return jsonify({"answer": f"❌ Error processing request: {str(e)}"})
+        return jsonify({"answer": f"❌ Error processing request: {str(e)}", "sources": []})
+
+@app.route('/api/documents', methods=['GET'])
+def get_documents():
+    try:
+        docs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "docs")
+        files_info = []
+        if os.path.exists(docs_dir):
+            for filename in sorted(os.listdir(docs_dir)):
+                if filename.lower().endswith(".pdf"):
+                    filepath = os.path.join(docs_dir, filename)
+                    size_kb = round(os.path.getsize(filepath) / 1024, 1)
+                    files_info.append({
+                        "filename": filename,
+                        "size": f"{size_kb} KB"
+                    })
+        return jsonify({"documents": files_info})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/upload', methods=['POST'])
+def upload_file():
+    try:
+        if 'file' not in request.files:
+            return jsonify({"error": "No file part in the request"}), 400
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({"error": "No file selected"}), 400
+        if not file.filename.lower().endswith('.pdf'):
+            return jsonify({"error": "Only PDF files are supported"}), 400
+
+        docs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "docs")
+        os.makedirs(docs_dir, exist_ok=True)
+        save_path = os.path.join(docs_dir, file.filename)
+        file.save(save_path)
+
+        # Trigger re-ingestion
+        try:
+            from ingestion import main as run_ingestion
+            run_ingestion()
+        except Exception as ingest_err:
+            print(f"Re-ingestion notice: {ingest_err}")
+
+        return jsonify({"message": f"Successfully uploaded and indexed '{file.filename}'!"})
+    except Exception as e:
+        return jsonify({"error": f"Failed to process file: {str(e)}"}), 500
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    app.run(debug=True, host='0.0.0.0', port=port)
+    port = int(os.environ.get("PORT", 5050))
+    debug_mode = os.environ.get("FLASK_DEBUG", "False").lower() == "true"
+    print(f"🚀 Starting RAG Web Assistant on http://localhost:{port}")
+    app.run(debug=debug_mode, host='0.0.0.0', port=port)
