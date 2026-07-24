@@ -2,7 +2,11 @@ import os
 import pickle
 import numpy as np
 import faiss
+import torch
 from sentence_transformers import SentenceTransformer
+
+# Limit PyTorch CPU threads to reduce memory overhead on Render (512MB RAM limit)
+torch.set_num_threads(1)
 
 # --- Config ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -31,7 +35,8 @@ def get_relevant_documents(query, k=3):
     index, chunks = load_faiss_index()
     model = get_embedding_model()
     
-    query_vec = model.encode([query]).astype("float32")
+    with torch.no_grad():
+        query_vec = model.encode([query]).astype("float32")
     distances, indices = index.search(query_vec, k)
     
     results = []

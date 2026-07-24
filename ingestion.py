@@ -1,9 +1,12 @@
 import os
 from pypdf import PdfReader
+import torch
 from sentence_transformers import SentenceTransformer
 import faiss
 import numpy as np
 import pickle
+
+torch.set_num_threads(1)
 
 # --- Config ---
 DOCS_PATH = "docs"
