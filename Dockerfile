@@ -1,25 +1,32 @@
 FROM python:3.11-slim
 
-# Set environment variables
+# Environment variables
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PORT=5050
 
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    && rm -rf /var/lib/apt-get/lists/*
+# Install only required system packages
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends build-essential && \
+    rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install Python dependencies
+# Install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application files
+# Copy application
 COPY . .
 
+# Expose Render port
 EXPOSE 5050
 
-# Run with Gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:5050", "--workers", "2", "--timeout", "120", "app:app"]
+# Start Gunicorn with a single worker to reduce memory usage
+CMD ["gunicorn", \
+     "--bind", "0.0.0.0:5050", \
+     "--workers", "1", \
+     "--threads", "2", \
+     "--timeout", "120", \
+     "--preload=false", \
+     "app:app"]
