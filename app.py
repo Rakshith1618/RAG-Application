@@ -12,6 +12,10 @@ app = Flask(__name__)
 def home():
     return render_template('index.html')
 
+@app.route('/health', methods=['GET'])
+def health():
+    return jsonify({"status": "healthy", "service": "Sports RAG Assistant"})
+
 @app.route('/ask', methods=['POST'])
 def ask():
     try:
