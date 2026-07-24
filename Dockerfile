@@ -23,10 +23,4 @@ COPY . .
 EXPOSE 5050
 
 # Start Gunicorn with a single worker to reduce memory usage
-CMD ["gunicorn", \
-     "--bind", "0.0.0.0:5050", \
-     "--workers", "1", \
-     "--threads", "2", \
-     "--timeout", "120", \
-     "--preload=false", \
-     "app:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:5050", "--workers", "1", "--threads", "2", "--timeout", "120", "app:app"]
